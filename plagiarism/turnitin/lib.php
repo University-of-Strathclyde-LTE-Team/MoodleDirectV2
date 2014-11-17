@@ -2285,7 +2285,7 @@ class plagiarism_plugin_turnitin extends plagiarism_plugin {
                 mtrace('Course Module: '.$cm->id.'');
                 mtrace('-------------------------');
 
-                return false;
+                return true; // MYP-855 - HACK
             }
         }
 
