@@ -1212,14 +1212,7 @@ class plagiarism_plugin_turnitin extends plagiarism_plugin {
             $assignment->setMaxGrade(($moduledata->grade < 0) ? 100 : (int)$moduledata->grade);
         }
 
-        if (!empty($moduledata->allowsubmissionsfromdate)) {
-            $dtstart = $moduledata->allowsubmissionsfromdate;
-        } else if (!empty($moduledata->timeavailable)) {
-            $dtstart = $moduledata->timeavailable;
-        } else {
-            $dtstart = $cm->added;
-        }
-        $dtstart = ($dtstart <= strtotime('-1 year')) ? strtotime('-11 months') : $dtstart;
+        $dtstart = self::calculate_start_date($cm, $moduledata);
         $assignment->setStartDate(gmdate("Y-m-d\TH:i:s\Z", $dtstart));
 
         $dtdue = 0;
@@ -1353,6 +1346,29 @@ class plagiarism_plugin_turnitin extends plagiarism_plugin {
             return true;
         }
     }
+    
+    /**
+     * Calculate the start date to be used by Turnitin.
+     * 
+     * @param object $cm a course module record
+     * @param string $moduledata the record from the module's own table (retrieved if not passed)
+     * @return int timestamp for the start date
+     */
+    public static function calculate_start_date($cm, $moduledata = null) {
+        global $DB;
+        if (empty($moduledata)) {
+            $moduledata = $DB->get_record($cm->modname, array('id' => $cm->instance));
+        }
+        if (!empty($moduledata->allowsubmissionsfromdate)) {
+            $dtstart = $moduledata->allowsubmissionsfromdate;
+        } else if (!empty($moduledata->timeavailable)) {
+            $dtstart = $moduledata->timeavailable;
+        } else {
+            $dtstart = $cm->added;
+        }
+        $dtstart = ($dtstart <= strtotime('-1 year')) ? strtotime('-11 months') : $dtstart;
+        return $dtstart;
+    }
 
     /**
      * Call functions to be run by cron
@@ -1410,7 +1426,10 @@ class plagiarism_plugin_turnitin extends plagiarism_plugin {
                             break;
                         case 0:
                             if ($post_date > time()) {
-                                $this->sync_tii_assignment($cm, $coursedata->turnitin_cid);
+                                $dtstart = self::calculate_start_date($cm);
+                                if ($post_date != $dtstart) {
+                                    $this->sync_tii_assignment($cm, $coursedata->turnitin_cid);
+                                }
                             }
                             break;
                         default:
